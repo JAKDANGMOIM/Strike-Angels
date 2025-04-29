@@ -1,0 +1,71 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Strike Angels 코드 구성 가이드
+
+이 가이드는 [구현계획서.md](mdc:구현계획서.md)에 정의된 프로젝트의 코드 구성 및 파일 구조에 대한 규칙을 제공합니다.
+
+## 프로젝트 구조
+
+### 폴더 구조
+```
+Assets/
+├── Scripts/
+│   ├── Player/             # 플레이어 관련 스크립트
+│   ├── Enemy/              # 적 관련 스크립트
+│   ├── Territory/          # 영역 점령 관련 스크립트
+│   ├── Weapons/            # 무기 및 공격 관련 스크립트
+│   ├── UI/                 # UI 관련 스크립트
+│   ├── Managers/           # 게임 매니저 스크립트
+│   └── Utils/              # 유틸리티 스크립트
+├── Prefabs/                # 프리팹 에셋
+├── Sprites/                # 스프라이트 에셋
+├── Animations/             # 애니메이션 에셋
+├── Materials/              # 머티리얼 에셋
+├── Audio/                  # 오디오 에셋
+└── ScriptableObjects/      # ScriptableObject 에셋
+```
+
+## 코딩 컨벤션
+
+### 네이밍 규칙
+- 클래스 및 스크립트 파일: PascalCase (예: `PlayerController.cs`)
+- 메서드: PascalCase (예: `UpdatePosition()`)
+- 변수: camelCase (예: `moveSpeed`)
+- 상수: UPPER_SNAKE_CASE (예: `MAX_HEALTH`)
+- 인터페이스: 'I' 접두사 + PascalCase (예: `IEnemy`)
+
+### 컴포넌트 설계
+- 한 스크립트는 하나의 주요 책임만 갖도록 합니다 (단일 책임 원칙)
+- 컴포넌트 간 의존성은 이벤트나 인터페이스를 통해 느슨하게 연결합니다
+- MonoBehaviour를 상속받는 클래스는 Unity 생명주기 메서드만 포함합니다
+
+## 주요 클래스 구조
+
+### 플레이어 시스템
+- `PlayerController.cs`: 플레이어 이동 및 입력 처리
+- `PlayerWeapon.cs`: 무기 및 공격 로직
+- `LineDrawing.cs`: 선 그리기 기능
+
+### 영역 점령 시스템
+- `TerritoryManager.cs`: 영역 관리 및 점령률 계산
+- `LineSegment.cs`: 선 세그먼트 및 충돌 처리
+- `Territory.cs`: 점령된 영역 데이터
+
+### 적 시스템
+- `Enemy.cs`: 기본 적 클래스 (추상 클래스)
+- `EnemyUFO.cs`: UFO 타입 적 구현
+- `EnemySpawner.cs`: 적 생성 및 관리
+
+### 스킬 시스템
+- `SkillManager.cs`: 스킬 관리 및 선택 처리
+- `Skill.cs`: ScriptableObject 기반 스킬 데이터
+- `SkillEffect.cs`: 스킬 효과 구현
+
+### 게임 관리 시스템
+- `GameManager.cs`: 게임 상태 및 흐름 관리
+- `UIManager.cs`: UI 요소 관리
+- `AudioManager.cs`: 오디오 재생 관리
+

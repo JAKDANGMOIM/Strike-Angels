@@ -241,9 +241,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   private fire() {
-    const bullet = this.bulletGroup.get(this.x, this.y) as Bullet;
-    if (bullet) {
-      bullet.fire(this.x, this.y, Phaser.Math.RadToDeg(this.rotation));
+    const baseAngle = Phaser.Math.RadToDeg(this.rotation);
+    const spreadAngles = [-12, 0, 12];
+
+    for (const spread of spreadAngles) {
+      const bullet = this.bulletGroup.get(this.x, this.y) as Bullet;
+      if (bullet) {
+        bullet.fire(this.x, this.y, baseAngle + spread);
+      }
     }
   }
 

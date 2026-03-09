@@ -15,9 +15,22 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   private afterburnerCooldownTimer: number = 0;
 
   // Input
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private shiftKey!: Phaser.Input.Keyboard.Key;
-  private wasd!: any;
+  private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
+  private shiftKey?: Phaser.Input.Keyboard.Key;
+  private wasd?: {
+    up: Phaser.Input.Keyboard.Key;
+    down: Phaser.Input.Keyboard.Key;
+    left: Phaser.Input.Keyboard.Key;
+    right: Phaser.Input.Keyboard.Key;
+  };
+
+  // Mobile Input
+  private readonly isTouchDevice: boolean;
+  private touchDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2(0, 0);
+  private joystickBase?: Phaser.GameObjects.Arc;
+  private joystickThumb?: Phaser.GameObjects.Arc;
+  private boostButton?: Phaser.GameObjects.Arc;
+  private joystickPointerId: number | null = null;
 
   // Weapon Properties
   private fireRate: number = 0.5; // fires per second
@@ -36,6 +49,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.bulletGroup = bulletGroup;
     this.currentSpeed = this.moveSpeed;
+    this.isTouchDevice = scene.sys.game.device.input.touch;
 
     // Set physics properties
     this.setCollideWorldBounds(true);
@@ -44,10 +58,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.displayWidth = 48;
     this.scaleY = this.scaleX;
 
-    // Assuming sprite faces up by default, if it faces right, we would adjust rotation.
-    // We will rotate it based on movement.
-
-    // Input setup
     if (scene.input.keyboard) {
       this.cursors = scene.input.keyboard.createCursorKeys();
       this.shiftKey = scene.input.keyboard.addKey(
@@ -58,7 +68,16 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         down: Phaser.Input.Keyboard.KeyCodes.S,
         left: Phaser.Input.Keyboard.KeyCodes.A,
         right: Phaser.Input.Keyboard.KeyCodes.D,
-      });
+      }) as {
+        up: Phaser.Input.Keyboard.Key;
+        down: Phaser.Input.Keyboard.Key;
+        left: Phaser.Input.Keyboard.Key;
+        right: Phaser.Input.Keyboard.Key;
+      };
+    }
+
+    if (this.isTouchDevice) {
+      this.createMobileControls();
     }
   }
 
@@ -68,8 +87,95 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.handleWeapon(delta);
   }
 
+  private createMobileControls() {
+    const baseX = 110;
+    const baseY = this.scene.scale.height - 110;
+
+    this.joystickBase = this.scene.add
+      .circle(baseX, baseY, 62, 0x222222, 0.35)
+      .setScrollFactor(0)
+      .setDepth(1000)
+      .setStrokeStyle(2, 0xffffff, 0.25);
+
+    this.joystickThumb = this.scene.add
+      .circle(baseX, baseY, 34, 0xffffff, 0.45)
+      .setScrollFactor(0)
+      .setDepth(1001);
+
+    this.boostButton = this.scene.add
+      .circle(this.scene.scale.width - 95, this.scene.scale.height - 95, 52, 0xff8c00, 0.45)
+      .setScrollFactor(0)
+      .setDepth(1000)
+      .setStrokeStyle(2, 0xffffff, 0.35);
+
+    this.boostButton.setInteractive({ useHandCursor: false });
+
+    this.scene.scale.on("resize", this.handleResize, this);
+
+    this.scene.input.on("pointerdown", this.handlePointerDown, this);
+    this.scene.input.on("pointermove", this.handlePointerMove, this);
+    this.scene.input.on("pointerup", this.handlePointerUp, this);
+    this.scene.input.on("pointerupoutside", this.handlePointerUp, this);
+  }
+
+  private handleResize(gameSize: Phaser.Structs.Size) {
+    if (!this.joystickBase || !this.joystickThumb || !this.boostButton) return;
+
+    this.joystickBase.setPosition(110, gameSize.height - 110);
+    this.joystickThumb.setPosition(110, gameSize.height - 110);
+    this.boostButton.setPosition(gameSize.width - 95, gameSize.height - 95);
+  }
+
+  private handlePointerDown(pointer: Phaser.Input.Pointer) {
+    if (!this.joystickBase || !this.joystickThumb || !this.boostButton) return;
+
+    if (pointer.x < this.scene.scale.width * 0.5 && this.joystickPointerId === null) {
+      this.joystickPointerId = pointer.id;
+      this.updateJoystick(pointer);
+      return;
+    }
+
+    if (this.boostButton.getBounds().contains(pointer.x, pointer.y)) {
+      this.tryActivateAfterburner();
+    }
+  }
+
+  private handlePointerMove(pointer: Phaser.Input.Pointer) {
+    if (pointer.id !== this.joystickPointerId) return;
+    this.updateJoystick(pointer);
+  }
+
+  private handlePointerUp(pointer: Phaser.Input.Pointer) {
+    if (!this.joystickBase || !this.joystickThumb) return;
+
+    if (pointer.id === this.joystickPointerId) {
+      this.joystickPointerId = null;
+      this.touchDirection.set(0, 0);
+      this.joystickThumb.setPosition(this.joystickBase.x, this.joystickBase.y);
+    }
+  }
+
+  private updateJoystick(pointer: Phaser.Input.Pointer) {
+    if (!this.joystickBase || !this.joystickThumb) return;
+
+    const dx = pointer.x - this.joystickBase.x;
+    const dy = pointer.y - this.joystickBase.y;
+    const vector = new Phaser.Math.Vector2(dx, dy);
+
+    const maxDistance = 50;
+    if (vector.length() > maxDistance) {
+      vector.setLength(maxDistance);
+    }
+
+    this.joystickThumb.setPosition(
+      this.joystickBase.x + vector.x,
+      this.joystickBase.y + vector.y,
+    );
+
+    this.touchDirection = vector.normalize();
+  }
+
   private updateTimers(delta: number) {
-    // Afterburner
     if (this.afterburnerActive) {
       this.afterburnerTimer -= delta;
       if (this.afterburnerTimer <= 0) {
@@ -81,55 +187,46 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       this.afterburnerCooldownTimer -= delta;
     }
 
-    // Weapon
     if (this.fireCooldown > 0) {
       this.fireCooldown -= delta;
     }
   }
 
   private handleInput() {
-    if (!this.cursors || !this.wasd) return;
-
     let inputX = 0;
     let inputY = 0;
 
-    if (this.cursors.left.isDown || this.wasd.left.isDown) inputX = -1;
-    else if (this.cursors.right.isDown || this.wasd.right.isDown) inputX = 1;
+    if (this.cursors && this.wasd) {
+      if (this.cursors.left.isDown || this.wasd.left.isDown) inputX = -1;
+      else if (this.cursors.right.isDown || this.wasd.right.isDown) inputX = 1;
 
-    if (this.cursors.up.isDown || this.wasd.up.isDown) inputY = -1;
-    else if (this.cursors.down.isDown || this.wasd.down.isDown) inputY = 1;
+      if (this.cursors.up.isDown || this.wasd.up.isDown) inputY = -1;
+      else if (this.cursors.down.isDown || this.wasd.down.isDown) inputY = 1;
+
+      if (this.shiftKey?.isDown) {
+        this.tryActivateAfterburner();
+      }
+    }
+
+    if (this.touchDirection.lengthSq() > 0) {
+      inputX = this.touchDirection.x;
+      inputY = this.touchDirection.y;
+    }
 
     const movementInput = new Phaser.Math.Vector2(inputX, inputY).normalize();
 
-    if (
-      this.shiftKey.isDown &&
-      !this.afterburnerActive &&
-      this.afterburnerCooldownTimer <= 0
-    ) {
-      this.activateAfterburner();
-    }
-
-    // 유니티 원본 "회전 처리 - 수정된 회전 로직" (점진적 회전) 재현
     if (movementInput.lengthSq() > 0) {
-      // Unity: Mathf.Atan2(movementInput.y, movementInput.x) * Mathf.Rad2Deg - 90f;
       const targetAngle = Math.atan2(movementInput.y, movementInput.x);
-
-      // Phaser rotation에서 부드러운 회전(Lerp) 적용
       let currentAngle = this.rotation - Math.PI / 2;
 
-      // 각도 차이 보정 (-PI ~ PI 범위로)
       let diff = targetAngle - currentAngle;
       while (diff < -Math.PI) diff += Math.PI * 2;
       while (diff > Math.PI) diff -= Math.PI * 2;
 
-      // 0.1f 속도(SmoothDamp와 유사한 임의의 Lerp 계수)로 회전
       currentAngle += diff * 0.1;
-
       this.rotation = currentAngle + Math.PI / 2;
     }
 
-    // 유니티 원본 "전진 이동 (항상 전방으로 이동)" 재현
-    // moveDirection = transform.up; rb.linearVelocity = moveDirection * currentSpeed;
     const angleRad = this.rotation - Math.PI / 2;
     const vx = Math.cos(angleRad) * this.currentSpeed;
     const vy = Math.sin(angleRad) * this.currentSpeed;
@@ -139,7 +236,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   private handleWeapon(_delta: number) {
     if (this.fireCooldown <= 0) {
       this.fire();
-      // fireRate is per second. 1 / fireRate = interval in seconds. * 1000 for ms.
       this.fireCooldown = (1 / this.fireRate) * 1000;
     }
   }
@@ -147,8 +243,13 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   private fire() {
     const bullet = this.bulletGroup.get(this.x, this.y) as Bullet;
     if (bullet) {
-      // Pass rotation in degrees since Bullet uses setRotation, wait Bullet fire method takes degrees.
       bullet.fire(this.x, this.y, Phaser.Math.RadToDeg(this.rotation));
+    }
+  }
+
+  private tryActivateAfterburner() {
+    if (!this.afterburnerActive && this.afterburnerCooldownTimer <= 0) {
+      this.activateAfterburner();
     }
   }
 
@@ -156,13 +257,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.afterburnerActive = true;
     this.afterburnerTimer = this.afterburnerDuration;
     this.currentSpeed = this.moveSpeed * this.afterburnerSpeedMultiplier;
-    // VFX would be toggled here
   }
 
   private deactivateAfterburner() {
     this.afterburnerActive = false;
     this.currentSpeed = this.moveSpeed;
     this.afterburnerCooldownTimer = this.afterburnerCooldown;
-    // VFX off
   }
 }

@@ -44,7 +44,7 @@ class GameScene extends Phaser.Scene {
     this.add.text(
       10,
       10,
-      "Strike Angels - Web Version\nWASD/Arrows to Rotate\nShift to Afterburn",
+      "Strike Angels\nDesktop: WASD/Arrows + Shift\nMobile: Left joystick + BOOST button",
       {
         fontSize: "16px",
         color: "#fff",
@@ -61,6 +61,10 @@ const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: 800,
   height: 600,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
   parent: "game-container",
   physics: {
     default: "arcade",

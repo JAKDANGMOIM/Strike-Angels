@@ -7,8 +7,76 @@ body {
   height: 100vh;
   background-color: #000;
   overflow: hidden;
+  touch-action: none;
 }
 
 #game-container {
   display: block;
+}
+
+.mobile-controls {
+  position: fixed;
+  inset: auto 0 0 0;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.mobile-pad {
+  width: 170px;
+  height: 170px;
+  position: relative;
+}
+
+.mobile-btn {
+  pointer-events: auto;
+  position: absolute;
+  width: 58px;
+  height: 58px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  background: rgba(40, 40, 40, 0.5);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.mobile-btn.pressed {
+  background: rgba(0, 180, 255, 0.7);
+}
+
+.mobile-btn.up {
+  top: 0;
+  left: 56px;
+}
+
+.mobile-btn.down {
+  bottom: 0;
+  left: 56px;
+}
+
+.mobile-btn.left {
+  left: 0;
+  top: 56px;
+}
+
+.mobile-btn.right {
+  right: 0;
+  top: 56px;
+}
+
+.mobile-btn.boost {
+  position: static;
+  width: 96px;
+  height: 96px;
+  font-size: 18px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mobile-controls {
+    display: none;
+  }
 }

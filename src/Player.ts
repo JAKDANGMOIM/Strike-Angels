@@ -39,6 +39,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Set physics properties
     this.setCollideWorldBounds(true);
+
+    // Scale down the high-res sprite (preserving aspect ratio)
+    this.displayWidth = 48;
+    this.scaleY = this.scaleX;
+
     // Assuming sprite faces up by default, if it faces right, we would adjust rotation.
     // We will rotate it based on movement.
 

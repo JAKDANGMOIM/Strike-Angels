@@ -37,6 +37,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   private fireCooldown: number = 0;
   private bulletGroup: Phaser.Physics.Arcade.Group;
 
+  // Health
+  private readonly maxHealth: number = 100;
+  private health: number = 100;
+  private smokeTimer: number = 0;
+  private smokeInterval: number = 120;
+
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -85,6 +91,50 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.updateTimers(delta);
     this.handleInput();
     this.handleWeapon(delta);
+    this.updateSmoke(delta);
+  }
+
+  takeDamage(amount: number) {
+    this.health = Phaser.Math.Clamp(this.health - amount, 0, this.maxHealth);
+  }
+
+  getHealthPercent(): number {
+    return this.health / this.maxHealth;
+  }
+
+  isDestroyed(): boolean {
+    return this.health <= 0;
+  }
+
+  private updateSmoke(delta: number) {
+    if (this.health > this.maxHealth * 0.5 || this.health <= 0) {
+      return;
+    }
+
+    this.smokeTimer -= delta;
+    if (this.smokeTimer > 0) {
+      return;
+    }
+
+    this.smokeTimer = this.smokeInterval;
+    const offset = new Phaser.Math.Vector2(0, 20).rotate(this.rotation);
+    const smoke = this.scene.add.circle(
+      this.x + offset.x,
+      this.y + offset.y,
+      Phaser.Math.Between(4, 8),
+      0x777777,
+      0.7,
+    );
+
+    this.scene.tweens.add({
+      targets: smoke,
+      x: smoke.x + Phaser.Math.Between(-10, 10),
+      y: smoke.y + Phaser.Math.Between(-25, -10),
+      alpha: 0,
+      scale: 1.8,
+      duration: 500,
+      onComplete: () => smoke.destroy(),
+    });
   }
 
   private createMobileControls() {

@@ -412,45 +412,64 @@ class GameScene extends Phaser.Scene {
   }
 
   private createBossTextureSet() {
-    const boss0 = this.add.graphics();
-    boss0.fillStyle(0xaa55ff, 1);
-    boss0.fillRoundedRect(0, 0, 64, 48, 8);
-    boss0.lineStyle(3, 0xffffff, 0.65);
-    boss0.strokeRoundedRect(0, 0, 64, 48, 8);
-    boss0.generateTexture("boss-0", 64, 48);
-    boss0.destroy();
+    const palette = [
+      {
+        body: 0x2f3944,
+        shadow: 0x1d252e,
+        highlight: 0x5d6b79,
+        glass: 0x88a7bf,
+        accent: 0x98a2ad,
+      },
+      {
+        body: 0x3a4e3d,
+        shadow: 0x263329,
+        highlight: 0x6f8f72,
+        glass: 0x9bc3d5,
+        accent: 0xb8c2ac,
+      },
+      {
+        body: 0x464248,
+        shadow: 0x2a2831,
+        highlight: 0x7d7586,
+        glass: 0x9fbed7,
+        accent: 0xd1ccd4,
+      },
+    ];
 
-    const boss1 = this.add.graphics();
-    boss1.fillStyle(0x44bbff, 1);
-    boss1.fillTriangle(32, 0, 64, 48, 0, 48);
-    boss1.lineStyle(3, 0xffffff, 0.7);
-    boss1.strokeTriangle(32, 0, 64, 48, 0, 48);
-    boss1.generateTexture("boss-1", 64, 48);
-    boss1.destroy();
+    palette.forEach((colors, index) => {
+      const g = this.add.graphics();
+      const px = 2;
 
-    const boss2 = this.add.graphics();
-    boss2.fillStyle(0xff8844, 1);
-    boss2.fillPoints(
-      [
-        new Phaser.Geom.Point(32, 0),
-        new Phaser.Geom.Point(64, 24),
-        new Phaser.Geom.Point(32, 48),
-        new Phaser.Geom.Point(0, 24),
-      ],
-      true,
-    );
-    boss2.lineStyle(3, 0xffffff, 0.7);
-    boss2.strokePoints(
-      [
-        new Phaser.Geom.Point(32, 0),
-        new Phaser.Geom.Point(64, 24),
-        new Phaser.Geom.Point(32, 48),
-        new Phaser.Geom.Point(0, 24),
-      ],
-      true,
-    );
-    boss2.generateTexture("boss-2", 64, 48);
-    boss2.destroy();
+      g.fillStyle(colors.accent, 1);
+      g.fillRect(2 * px, 4 * px, 44 * px, px); // rotor
+      g.fillRect(23 * px, 2 * px, 2 * px, 2 * px); // rotor mast
+
+      g.fillStyle(colors.body, 1);
+      g.fillRect(6 * px, 8 * px, 30 * px, 9 * px); // body
+      g.fillRect(28 * px, 6 * px, 11 * px, 11 * px); // cockpit nose
+      g.fillRect(3 * px, 9 * px, 3 * px, 6 * px); // tail start
+
+      g.fillStyle(colors.shadow, 1);
+      g.fillRect(6 * px, 14 * px, 30 * px, 3 * px);
+      g.fillRect(31 * px, 13 * px, 8 * px, 4 * px);
+      g.fillRect(2 * px, 10 * px, 4 * px, 5 * px);
+
+      g.fillStyle(colors.highlight, 1);
+      g.fillRect(8 * px, 8 * px, 24 * px, 2 * px);
+      g.fillRect(30 * px, 7 * px, 6 * px, 2 * px);
+
+      g.fillStyle(colors.glass, 1);
+      g.fillRect(31 * px, 8 * px, 6 * px, 4 * px);
+
+      g.fillStyle(colors.accent, 1);
+      g.fillRect(8 * px, 17 * px, 28 * px, px); // landing gear
+      g.fillRect(12 * px, 16 * px, px, 2 * px);
+      g.fillRect(28 * px, 16 * px, px, 2 * px);
+      g.fillRect(0, 11 * px, 3 * px, px); // tail rotor
+
+      g.generateTexture(`boss-${index}`, 48 * px, 20 * px);
+      g.destroy();
+    });
   }
 
   private spawnEnemyLane() {

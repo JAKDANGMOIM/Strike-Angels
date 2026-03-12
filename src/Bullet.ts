@@ -19,10 +19,9 @@ export default class Bullet extends Phaser.Physics.Arcade.Sprite {
     this.setActive(true);
     this.setVisible(true);
 
-    this.setRotation(Phaser.Math.DegToRad(angleDegrees));
+    const angleRad = Phaser.Math.DegToRad(angleDegrees);
+    this.setRotation(angleRad);
 
-    // Calculate velocity based on rotation
-    const angleRad = this.rotation - Math.PI / 2; // Subtract 90 degrees because 0 degrees is facing up in our game (Unity behavior)
     const vx = Math.cos(angleRad) * this.speed;
     const vy = Math.sin(angleRad) * this.speed;
 

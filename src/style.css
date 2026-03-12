@@ -1,58 +1,54 @@
 body {
   margin: 0;
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
   background: radial-gradient(circle at center, #2b0f1b 0%, #09070d 70%);
-  overflow: hidden;
   color: #fff;
   font-family: "Pretendard", "Noto Sans KR", sans-serif;
 }
 
 #app-shell {
-  width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  padding: 14px;
+  gap: 12px;
+  padding: 10px;
   box-sizing: border-box;
-  gap: 14px;
 }
 
-.side-panel {
-  width: 22vw;
-  height: 95vh;
-  min-width: 220px;
-  max-width: 340px;
-  border: 2px solid rgba(255, 255, 255, 0.28);
+.control-panel {
+  width: min(420px, 96vw);
   background: rgba(20, 8, 16, 0.72);
+  border: 2px solid rgba(255, 255, 255, 0.28);
   border-radius: 12px;
-  padding: 20px;
+  padding: 12px;
   box-sizing: border-box;
 }
 
-.side-panel h2 {
-  margin-top: 0;
-  margin-bottom: 14px;
-  font-size: 24px;
+.control-panel h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+
+.control-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .difficulty-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .difficulty-btn {
+  flex: 1;
   border: 1px solid rgba(255, 255, 255, 0.5);
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
-  padding: 10px 12px;
+  padding: 8px;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -63,23 +59,32 @@ body {
 }
 
 #game-container {
-  flex: 1;
-  height: 95vh;
+  width: min(420px, 96vw);
+  height: min(880px, 76vh);
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-#boss-time {
-  margin-top: 20px;
-  font-size: 56px;
-  font-weight: 900;
-  color: #ff5f65;
-  text-shadow: 0 0 12px rgba(255, 72, 72, 0.7);
-}
-
 #game-container canvas {
+  width: 100% !important;
+  height: 100% !important;
   touch-action: none;
   border: 2px solid rgba(255, 255, 255, 0.45);
   border-radius: 10px;
+}
+
+#boss-timer-overlay {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: #ff7f86;
+  font-weight: 700;
+  font-size: 16px;
+  pointer-events: none;
 }

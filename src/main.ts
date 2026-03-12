@@ -65,33 +65,88 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
 
 class Boss extends Enemy {
   private readonly bossId: number;
+  private maxBossHp = 55;
+  private patternTimer = 0;
+  private firePattern: "aimedSpread" | "spiralBurst" | "crossShot" = "aimedSpread";
+  private baseX = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, bossId: number) {
     super(scene, x, y);
     this.bossId = bossId;
-    this.setTexture("boss");
+    this.setTexture(Boss.getTextureKey(bossId));
     this.speed = 70;
+  }
+
+  static getTextureKey(bossId: number) {
+    return `boss-${bossId % 3}`;
   }
 
   spawn(x: number, y: number) {
     super.spawn(x, y);
-    this.hp = 55;
+    this.baseX = x;
+    this.maxBossHp = 55 + this.bossId * 8;
+    this.hp = this.maxBossHp;
     this.setScale(1.1);
-    this.setTint(Phaser.Display.Color.GetColor(180 + this.bossId * 20, 120, 255));
+    this.patternTimer = 2200;
+    this.pickPattern();
+    this.clearTint();
   }
 
   getBossId() {
     return this.bossId;
   }
 
+  getHpPercent() {
+    return Phaser.Math.Clamp(this.hp / this.maxBossHp, 0, 1);
+  }
+
+  preUpdate(time: number, delta: number) {
+    super.preUpdate(time, delta);
+    const game = this.scene as GameScene;
+    if (!this.active || game.isGameOver()) return;
+
+    this.setVelocityY(this.y < 130 ? 72 : 0);
+    this.patternTimer -= delta;
+    if (this.patternTimer <= 0) {
+      this.pickPattern();
+      this.patternTimer = 2600 - this.bossId * 100;
+    }
+
+    const xOffset = Math.sin(time * 0.0018 + this.bossId) * 130;
+    this.setX(this.baseX + xOffset);
+  }
+
+  private pickPattern() {
+    const roll = Phaser.Math.Between(0, 2);
+    this.firePattern = roll === 0 ? "aimedSpread" : roll === 1 ? "spiralBurst" : "crossShot";
+  }
+
   protected fireAt(targetX: number, targetY: number) {
     const gameScene = this.scene as GameScene;
-    for (const spread of [-20, -8, 8, 20]) {
+    const base = Phaser.Math.RadToDeg(Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY));
+
+    if (this.firePattern === "aimedSpread") {
+      for (const spread of [-28, -12, 0, 12, 28]) {
+        const bullet = gameScene.enemyBulletGroup.get(this.x, this.y + 10) as EnemyBullet;
+        if (!bullet) continue;
+        bullet.fire(this.x, this.y + 10, base + spread, 230 + gameScene.getStage() * 10);
+      }
+      return;
+    }
+
+    if (this.firePattern === "spiralBurst") {
+      const spiralBase = (gameScene.time.now * 0.15) % 360;
+      for (const offset of [0, 45, 90, 135, 180, 225, 270, 315]) {
+        const bullet = gameScene.enemyBulletGroup.get(this.x, this.y + 10) as EnemyBullet;
+        if (!bullet) continue;
+        bullet.fire(this.x, this.y + 10, spiralBase + offset, 190 + gameScene.getStage() * 8);
+      }
+      return;
+    }
+
+    for (const spread of [-90, -45, 0, 45, 90, 180]) {
       const bullet = gameScene.enemyBulletGroup.get(this.x, this.y + 10) as EnemyBullet;
       if (!bullet) continue;
-      const base = Phaser.Math.RadToDeg(
-        Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY),
-      );
       bullet.fire(this.x, this.y + 10, base + spread, 220 + gameScene.getStage() * 8);
     }
   }
@@ -125,15 +180,21 @@ class EnemyBullet extends Phaser.Physics.Arcade.Sprite {
 
 class Wingman {
   private readonly scene: GameScene;
-  private readonly sprite: Phaser.GameObjects.Arc;
+  private readonly sprite: Phaser.GameObjects.Sprite;
   private angleOffset: number;
   private radius = 52;
   private fireCooldown = 0;
+  private readonly fireStyle: "narrow" | "split";
 
-  constructor(scene: GameScene, color: number, angleOffset: number) {
+  constructor(scene: GameScene, texture: string, angleOffset: number, fireStyle: "narrow" | "split") {
     this.scene = scene;
     this.angleOffset = angleOffset;
-    this.sprite = scene.add.circle(scene.player.x, scene.player.y, 10, color, 0.95).setDepth(5);
+    this.fireStyle = fireStyle;
+    this.sprite = scene.add
+      .sprite(scene.player.x, scene.player.y, texture)
+      .setScale(0.5)
+      .setAlpha(0.92)
+      .setDepth(5);
   }
 
   update(delta: number) {
@@ -146,12 +207,21 @@ class Wingman {
     if (this.fireCooldown > 0) return;
 
     const targetAngle = this.scene.getAutoTargetAngle();
-    const bullet = this.scene.getBulletGroup().get(px, py) as Bullet;
-    if (bullet) {
-      bullet.fire(px, py, targetAngle);
-      bullet.setTint(0x66ffcc);
+    if (this.fireStyle === "narrow") {
+      const bullet = this.scene.getBulletGroup().get(px, py) as Bullet;
+      if (bullet) {
+        bullet.fire(px, py, targetAngle);
+        bullet.setTint(0x66ffcc);
+      }
+    } else {
+      for (const spread of [-8, 8]) {
+        const bullet = this.scene.getBulletGroup().get(px, py) as Bullet;
+        if (!bullet) continue;
+        bullet.fire(px, py, targetAngle + spread);
+        bullet.setTint(0x99ddff);
+      }
     }
-    this.fireCooldown = 400;
+    this.fireCooldown = this.fireStyle === "narrow" ? 360 : 500;
   }
 }
 
@@ -172,6 +242,9 @@ class GameScene extends Phaser.Scene {
   private wingmen: Wingman[] = [];
   private stageText!: Phaser.GameObjects.Text;
   private bossTimerText!: Phaser.GameObjects.Text;
+  private bossHpLabel!: Phaser.GameObjects.Text;
+  private bossHpBarBg!: Phaser.GameObjects.Rectangle;
+  private bossHpBarFill!: Phaser.GameObjects.Rectangle;
   private bossCountdownMs = 45000;
   private readonly bossCountdownBaseMs = 45000;
   private difficulty: "easy" | "normal" | "hard" = "easy";
@@ -231,6 +304,26 @@ class GameScene extends Phaser.Scene {
     this.setupColliders();
 
     this.stageText = this.add.text(10, 10, "STAGE 1", { fontSize: "20px", color: "#ffffff" }).setScrollFactor(0);
+    this.bossHpLabel = this.add
+      .text(this.scale.width / 2, 12, "", {
+        fontSize: "15px",
+        color: "#ffcccc",
+        backgroundColor: "#00000099",
+        padding: { x: 8, y: 3 },
+      })
+      .setOrigin(0.5, 0)
+      .setVisible(false)
+      .setScrollFactor(0);
+    this.bossHpBarBg = this.add
+      .rectangle(this.scale.width / 2, 40, 220, 14, 0x000000, 0.7)
+      .setOrigin(0.5, 0)
+      .setVisible(false)
+      .setScrollFactor(0);
+    this.bossHpBarFill = this.add
+      .rectangle(this.scale.width / 2 - 108, 42, 216, 10, 0xff3366)
+      .setOrigin(0, 0)
+      .setVisible(false)
+      .setScrollFactor(0);
     this.bossTimerText = this
       .add.text(this.scale.width - 12, this.scale.height - 14, "BOSS 00:45", {
         fontSize: "16px",
@@ -254,6 +347,7 @@ class GameScene extends Phaser.Scene {
     this.updateHealthUI();
     this.wingmen.forEach((w) => w.update(delta));
     this.updateBossCountdown(delta);
+    this.updateBossHpUI();
 
     if (this.player.isDestroyed()) {
       this.handleGameOver();
@@ -317,19 +411,55 @@ class GameScene extends Phaser.Scene {
     enemyGraphics.generateTexture("enemy", 20, 20);
     enemyGraphics.destroy();
 
-    const bossGraphics = this.add.graphics();
-    bossGraphics.fillStyle(0xaa55ff, 1);
-    bossGraphics.fillRoundedRect(0, 0, 64, 48, 8);
-    bossGraphics.lineStyle(3, 0xffffff, 0.65);
-    bossGraphics.strokeRoundedRect(0, 0, 64, 48, 8);
-    bossGraphics.generateTexture("boss", 64, 48);
-    bossGraphics.destroy();
+    this.createBossTextureSet();
 
     const enemyBulletGraphics = this.add.graphics();
     enemyBulletGraphics.fillStyle(0xffa500, 1);
     enemyBulletGraphics.fillCircle(4, 4, 4);
     enemyBulletGraphics.generateTexture("enemyBullet", 8, 8);
     enemyBulletGraphics.destroy();
+  }
+
+  private createBossTextureSet() {
+    const boss0 = this.add.graphics();
+    boss0.fillStyle(0xaa55ff, 1);
+    boss0.fillRoundedRect(0, 0, 64, 48, 8);
+    boss0.lineStyle(3, 0xffffff, 0.65);
+    boss0.strokeRoundedRect(0, 0, 64, 48, 8);
+    boss0.generateTexture("boss-0", 64, 48);
+    boss0.destroy();
+
+    const boss1 = this.add.graphics();
+    boss1.fillStyle(0x44bbff, 1);
+    boss1.fillTriangle(32, 0, 64, 48, 0, 48);
+    boss1.lineStyle(3, 0xffffff, 0.7);
+    boss1.strokeTriangle(32, 0, 64, 48, 0, 48);
+    boss1.generateTexture("boss-1", 64, 48);
+    boss1.destroy();
+
+    const boss2 = this.add.graphics();
+    boss2.fillStyle(0xff8844, 1);
+    boss2.fillPoints(
+      [
+        new Phaser.Geom.Point(32, 0),
+        new Phaser.Geom.Point(64, 24),
+        new Phaser.Geom.Point(32, 48),
+        new Phaser.Geom.Point(0, 24),
+      ],
+      true,
+    );
+    boss2.lineStyle(3, 0xffffff, 0.7);
+    boss2.strokePoints(
+      [
+        new Phaser.Geom.Point(32, 0),
+        new Phaser.Geom.Point(64, 24),
+        new Phaser.Geom.Point(32, 48),
+        new Phaser.Geom.Point(0, 24),
+      ],
+      true,
+    );
+    boss2.generateTexture("boss-2", 64, 48);
+    boss2.destroy();
   }
 
   private spawnEnemyLane() {
@@ -381,6 +511,20 @@ class GameScene extends Phaser.Scene {
     if (this.bossTimeEl) this.bossTimeEl.textContent = `BOSS ${mm}:${ss}`;
   }
 
+  private updateBossHpUI() {
+    const boss = this.bossGroup.getFirstAlive() as Boss | null;
+    const show = Boolean(boss && this.bossSpawned);
+    this.bossHpLabel.setVisible(show);
+    this.bossHpBarBg.setVisible(show);
+    this.bossHpBarFill.setVisible(show);
+    if (!show || !boss) return;
+
+    const hpRatio = boss.getHpPercent();
+    this.bossHpLabel.setText(`BOSS ${boss.getBossId()}  HP`);
+    this.bossHpBarFill.width = 216 * hpRatio;
+    this.bossHpBarFill.fillColor = hpRatio < 0.3 ? 0xff5533 : hpRatio < 0.65 ? 0xffcc44 : 0xff66aa;
+  }
+
   private updateHealthUI() {
     const healthPercent = this.player.getHealthPercent();
     this.healthBarFill.width = 210 * healthPercent;
@@ -411,8 +555,9 @@ class GameScene extends Phaser.Scene {
       this.stageText.setText(`STAGE ${this.stage}`);
       this.updateBossTimerUI();
 
-      const wingmanColor = Phaser.Display.Color.GetColor(60 + this.wingmen.length * 40, 255, 200);
-      this.wingmen.push(new Wingman(this, wingmanColor, this.wingmen.length * 1.4));
+      const wingmanTexture = Boss.getTextureKey(boss.getBossId());
+      const fireStyle = this.wingmen.length % 2 === 0 ? "narrow" : "split";
+      this.wingmen.push(new Wingman(this, wingmanTexture, this.wingmen.length * 1.4, fireStyle));
     });
 
     this.physics.add.overlap(this.player, this.enemyGroup, (_p, e) => {

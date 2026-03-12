@@ -7,31 +7,6 @@
   </head>
   <body>
     <div id="app-shell">
-      <section class="control-panel">
-        <h2>관리자 설정</h2>
-
-        <div class="control-row">
-          <label>난이도: <strong id="difficulty-label">쉬움</strong></label>
-          <div class="difficulty-tabs">
-            <button class="difficulty-btn active" data-difficulty="easy">쉬움</button>
-            <button class="difficulty-btn" data-difficulty="normal">보통</button>
-            <button class="difficulty-btn" data-difficulty="hard">어려움</button>
-          </div>
-        </div>
-
-        <div class="control-row">
-          <label for="enemy-fire-rate">적 탄환 빈도</label>
-          <input id="enemy-fire-rate" type="range" min="0" max="100" value="20" />
-          <small id="enemy-fire-rate-label">낮음</small>
-        </div>
-
-        <div class="control-row">
-          <label for="enemy-spawn-rate">적 출현 빈도</label>
-          <input id="enemy-spawn-rate" type="range" min="0" max="100" value="20" />
-          <small id="enemy-spawn-rate-label">낮음</small>
-        </div>
-      </section>
-
       <main id="game-container">
         <div id="boss-timer-overlay">BOSS 00:45</div>
       </main>

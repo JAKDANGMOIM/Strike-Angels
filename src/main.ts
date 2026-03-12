@@ -247,15 +247,8 @@ class GameScene extends Phaser.Scene {
   private bossHpBarFill!: Phaser.GameObjects.Rectangle;
   private bossCountdownMs = 45000;
   private readonly bossCountdownBaseMs = 45000;
-  private difficulty: "easy" | "normal" | "hard" = "easy";
-  private difficultyLabelEl: HTMLElement | null = null;
+  private difficulty: "easy" | "normal" | "hard" = "normal";
   private bossTimeEl: HTMLElement | null = null;
-  private enemyFireRateSlider: HTMLInputElement | null = null;
-  private enemySpawnRateSlider: HTMLInputElement | null = null;
-  private enemyFireRateLabelEl: HTMLElement | null = null;
-  private enemySpawnRateLabelEl: HTMLElement | null = null;
-  private enemyFireRateFactor = 0.2;
-  private enemySpawnRateFactor = 0.2;
 
   private readonly difficultySettings = {
     easy: { enemySpeed: 0.48, enemyHp: 1, spawnInterval: 1650, contactDamage: 6, bulletDamage: 3 },
@@ -295,9 +288,6 @@ class GameScene extends Phaser.Scene {
       () => -90,
     );
 
-    this.setupDifficultyControls();
-    this.setupEnemyRateControls();
-    this.difficultyLabelEl = document.getElementById("difficulty-label");
     this.bossTimeEl = document.getElementById("boss-timer-overlay");
 
     this.createHealthUI();
@@ -334,7 +324,6 @@ class GameScene extends Phaser.Scene {
       .setOrigin(1, 1)
       .setScrollFactor(0);
 
-    this.updateDifficultyUI();
     this.updateBossTimerUI();
 
     this.enemySpawnTimer = 300;
@@ -359,8 +348,7 @@ class GameScene extends Phaser.Scene {
       if (this.enemySpawnTimer <= 0) {
         this.spawnEnemyLane();
         const spawnBase = this.difficultySettings[this.difficulty].spawnInterval;
-        const rateReducer = this.enemySpawnRateFactor * 400;
-        this.enemySpawnTimer = Math.max(500, spawnBase - this.stage * 20 - rateReducer);
+        this.enemySpawnTimer = Math.max(500, spawnBase - this.stage * 26);
       }
 
       if (this.killsInStage >= this.nextBossKillTarget) {
@@ -382,7 +370,7 @@ class GameScene extends Phaser.Scene {
   }
 
   getEnemyShootInterval() {
-    const base = 2800 - this.enemyFireRateFactor * 1400;
+    const base = 2520;
     return Math.max(700, base - this.stage * 30);
   }
 
@@ -463,7 +451,7 @@ class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemyLane() {
-    const maxCount = this.enemySpawnRateFactor < 0.34 ? 1 : this.enemySpawnRateFactor < 0.67 ? 2 : 3;
+    const maxCount = this.stage < 3 ? 1 : this.stage < 6 ? 2 : 3;
     const count = Phaser.Math.Between(1, maxCount);
     for (let i = 0; i < count; i++) {
       const enemy = this.enemyGroup.get(0, 0) as Enemy;
@@ -577,66 +565,6 @@ class GameScene extends Phaser.Scene {
       enemyBullet.disableBody(true, true);
       this.player.takeDamage(this.difficultySettings[this.difficulty].bulletDamage);
     });
-  }
-
-  private setupDifficultyControls() {
-    const buttons = document.querySelectorAll<HTMLButtonElement>(".difficulty-btn");
-    buttons.forEach((button) => {
-      button.onclick = () => {
-        this.difficulty = (button.dataset.difficulty as "easy" | "normal" | "hard") ?? "easy";
-        this.updateDifficultyUI();
-      };
-    });
-  }
-
-
-  private setupEnemyRateControls() {
-    this.enemyFireRateSlider = document.getElementById("enemy-fire-rate") as HTMLInputElement | null;
-    this.enemySpawnRateSlider = document.getElementById("enemy-spawn-rate") as HTMLInputElement | null;
-    this.enemyFireRateLabelEl = document.getElementById("enemy-fire-rate-label");
-    this.enemySpawnRateLabelEl = document.getElementById("enemy-spawn-rate-label");
-
-    this.enemyFireRateSlider?.addEventListener("input", () => {
-      this.enemyFireRateFactor = Number(this.enemyFireRateSlider?.value ?? 20) / 100;
-      this.updateEnemyControlUI();
-    });
-
-    this.enemySpawnRateSlider?.addEventListener("input", () => {
-      this.enemySpawnRateFactor = Number(this.enemySpawnRateSlider?.value ?? 20) / 100;
-      this.updateEnemyControlUI();
-    });
-
-    this.updateEnemyControlUI();
-  }
-
-  private updateEnemyControlUI() {
-    this.enemyFireRateFactor = Number(this.enemyFireRateSlider?.value ?? 20) / 100;
-    this.enemySpawnRateFactor = Number(this.enemySpawnRateSlider?.value ?? 20) / 100;
-
-    if (this.enemyFireRateLabelEl) {
-      this.enemyFireRateLabelEl.textContent = this.getRateText(this.enemyFireRateFactor);
-    }
-
-    if (this.enemySpawnRateLabelEl) {
-      this.enemySpawnRateLabelEl.textContent = this.getRateText(this.enemySpawnRateFactor);
-    }
-  }
-
-  private getRateText(value: number) {
-    if (value < 0.34) return "낮음";
-    if (value < 0.67) return "보통";
-    return "높음";
-  }
-
-  private updateDifficultyUI() {
-    const buttons = document.querySelectorAll<HTMLButtonElement>(".difficulty-btn");
-    buttons.forEach((button) => {
-      button.classList.toggle("active", button.dataset.difficulty === this.difficulty);
-    });
-    if (this.difficultyLabelEl) {
-      const label = this.difficulty === "easy" ? "쉬움" : this.difficulty === "normal" ? "보통" : "어려움";
-      this.difficultyLabelEl.textContent = label;
-    }
   }
 
   private handleGameOver() {

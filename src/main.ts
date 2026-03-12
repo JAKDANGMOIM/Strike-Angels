@@ -16,10 +16,11 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   spawn(x: number, y: number) {
+    const game = this.scene as GameScene;
     this.enableBody(true, x, y, true, true);
     this.setActive(true);
     this.setVisible(true);
-    this.hp = 2;
+    this.hp = game.getEnemyHp();
     this.shootCooldown = Phaser.Math.Between(250, this.shootInterval);
   }
 
@@ -37,7 +38,7 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
     const game = this.scene as GameScene;
     if (!this.active || game.isGameOver()) return;
 
-    this.setVelocity(0, this.speed + game.getStage() * 6);
+    this.setVelocity(0, this.speed * game.getEnemySpeedMultiplier() + game.getStage() * 5);
 
     this.shootCooldown -= delta;
     if (this.shootCooldown <= 0) {
@@ -91,7 +92,7 @@ class Boss extends Enemy {
       const base = Phaser.Math.RadToDeg(
         Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY),
       );
-      bullet.fire(this.x, this.y + 10, base + spread, 260);
+      bullet.fire(this.x, this.y + 10, base + spread, 220 + gameScene.getStage() * 8);
     }
   }
 }
@@ -168,9 +169,20 @@ class GameScene extends Phaser.Scene {
   private nextBossKillTarget = 25;
   private bossSpawned = false;
   private enemySpawnTimer = 0;
-  private enemySpawnInterval = 850;
   private wingmen: Wingman[] = [];
   private stageText!: Phaser.GameObjects.Text;
+  private bossTimerText!: Phaser.GameObjects.Text;
+  private bossCountdownMs = 45000;
+  private readonly bossCountdownBaseMs = 45000;
+  private difficulty: "easy" | "normal" | "hard" = "easy";
+  private difficultyLabelEl: HTMLElement | null = null;
+  private bossTimeEl: HTMLElement | null = null;
+
+  private readonly difficultySettings = {
+    easy: { enemySpeed: 0.65, enemyHp: 1, spawnInterval: 1250, contactDamage: 12, bulletDamage: 6 },
+    normal: { enemySpeed: 0.9, enemyHp: 2, spawnInterval: 950, contactDamage: 18, bulletDamage: 9 },
+    hard: { enemySpeed: 1.12, enemyHp: 3, spawnInterval: 760, contactDamage: 24, bulletDamage: 12 },
+  };
 
   constructor() {
     super("GameScene");
@@ -181,6 +193,14 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.gameOverShown = false;
+    this.stage = 1;
+    this.killsInStage = 0;
+    this.nextBossKillTarget = 25;
+    this.bossSpawned = false;
+    this.wingmen = [];
+    this.bossCountdownMs = this.bossCountdownBaseMs;
+
     this.createTextures();
 
     this.bulletGroup = this.physics.add.group({ classType: Bullet, maxSize: 300, runChildUpdate: true });
@@ -193,19 +213,21 @@ class GameScene extends Phaser.Scene {
       this.cameras.main.centerX,
       this.scale.height * 0.8,
       this.bulletGroup,
-      () => this.getAutoTargetAngle(),
+      () => -90,
     );
+
+    this.setupDifficultyControls();
+    this.difficultyLabelEl = document.getElementById("difficulty-label");
+    this.bossTimeEl = document.getElementById("boss-time");
 
     this.createHealthUI();
     this.setupColliders();
 
     this.stageText = this.add.text(10, 10, "STAGE 1", { fontSize: "20px", color: "#ffffff" }).setScrollFactor(0);
-    this.add
-      .text(10, 40, "세로 슈팅 + 자동공격\n보스 처치 시 다음 스테이지부터 아군 합류", {
-        fontSize: "14px",
-        color: "#d0d0ff",
-      })
-      .setScrollFactor(0);
+    this.bossTimerText = this.add.text(10, 40, "BOSS 00:45", { fontSize: "16px", color: "#ff9999" }).setScrollFactor(0);
+
+    this.updateDifficultyUI();
+    this.updateBossTimerUI();
 
     this.enemySpawnTimer = 300;
   }
@@ -216,6 +238,7 @@ class GameScene extends Phaser.Scene {
     this.player.update(time, delta);
     this.updateHealthUI();
     this.wingmen.forEach((w) => w.update(delta));
+    this.updateBossCountdown(delta);
 
     if (this.player.isDestroyed()) {
       this.handleGameOver();
@@ -226,7 +249,8 @@ class GameScene extends Phaser.Scene {
       this.enemySpawnTimer -= delta;
       if (this.enemySpawnTimer <= 0) {
         this.spawnEnemyLane();
-        this.enemySpawnTimer = Math.max(350, this.enemySpawnInterval - this.stage * 30);
+        const spawnBase = this.difficultySettings[this.difficulty].spawnInterval;
+        this.enemySpawnTimer = Math.max(360, spawnBase - this.stage * 25);
       }
 
       if (this.killsInStage >= this.nextBossKillTarget) {
@@ -257,6 +281,14 @@ class GameScene extends Phaser.Scene {
     return Phaser.Math.RadToDeg(
       Phaser.Math.Angle.Between(this.player.x, this.player.y, closest.x, closest.y),
     );
+  }
+
+  getEnemySpeedMultiplier() {
+    return this.difficultySettings[this.difficulty].enemySpeed;
+  }
+
+  getEnemyHp() {
+    return this.difficultySettings[this.difficulty].enemyHp;
   }
 
   getBulletGroup() {
@@ -311,6 +343,8 @@ class GameScene extends Phaser.Scene {
 
   private spawnBoss() {
     this.bossSpawned = true;
+    this.bossCountdownMs = this.bossCountdownBaseMs;
+    this.updateBossTimerUI();
     const boss = new Boss(this, this.scale.width * 0.5, -60, this.stage);
     this.bossGroup.add(boss, true);
     boss.spawn(this.scale.width * 0.5, -40);
@@ -323,6 +357,26 @@ class GameScene extends Phaser.Scene {
       .rectangle(60, 88, 210, 16, 0x00ff66)
       .setOrigin(0, 0.5)
       .setScrollFactor(0);
+  }
+
+  private updateBossCountdown(delta: number) {
+    if (this.bossSpawned || this.gameOverShown) return;
+    this.bossCountdownMs -= delta;
+    this.updateBossTimerUI();
+
+    if (this.bossCountdownMs <= 0) {
+      this.spawnBoss();
+    }
+  }
+
+  private updateBossTimerUI() {
+    const safeMs = Math.max(0, this.bossCountdownMs);
+    const totalSec = Math.ceil(safeMs / 1000);
+    const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+    const ss = String(totalSec % 60).padStart(2, "0");
+    const text = `BOSS ${mm}:${ss}`;
+    this.bossTimerText?.setText(text);
+    if (this.bossTimeEl) this.bossTimeEl.textContent = `${mm}:${ss}`;
   }
 
   private updateHealthUI() {
@@ -351,7 +405,9 @@ class GameScene extends Phaser.Scene {
       this.killsInStage = 0;
       this.nextBossKillTarget += 10;
       this.bossSpawned = false;
+      this.bossCountdownMs = this.bossCountdownBaseMs;
       this.stageText.setText(`STAGE ${this.stage}`);
+      this.updateBossTimerUI();
 
       const wingmanColor = Phaser.Display.Color.GetColor(60 + this.wingmen.length * 40, 255, 200);
       this.wingmen.push(new Wingman(this, wingmanColor, this.wingmen.length * 1.4));
@@ -360,20 +416,41 @@ class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.enemyGroup, (_p, e) => {
       const enemy = e as Enemy;
       enemy.disableBody(true, true);
-      this.player.takeDamage(20);
+      this.player.takeDamage(this.difficultySettings[this.difficulty].contactDamage);
     });
 
     this.physics.add.overlap(this.player, this.bossGroup, (_p, b) => {
       const boss = b as Boss;
       boss.disableBody(true, true);
-      this.player.takeDamage(35);
+      this.player.takeDamage(this.difficultySettings[this.difficulty].contactDamage + 12);
     });
 
     this.physics.add.overlap(this.player, this.enemyBulletGroup, (_p, eb) => {
       const enemyBullet = eb as EnemyBullet;
       enemyBullet.disableBody(true, true);
-      this.player.takeDamage(10);
+      this.player.takeDamage(this.difficultySettings[this.difficulty].bulletDamage);
     });
+  }
+
+  private setupDifficultyControls() {
+    const buttons = document.querySelectorAll<HTMLButtonElement>(".difficulty-btn");
+    buttons.forEach((button) => {
+      button.onclick = () => {
+        this.difficulty = (button.dataset.difficulty as "easy" | "normal" | "hard") ?? "easy";
+        this.updateDifficultyUI();
+      };
+    });
+  }
+
+  private updateDifficultyUI() {
+    const buttons = document.querySelectorAll<HTMLButtonElement>(".difficulty-btn");
+    buttons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.difficulty === this.difficulty);
+    });
+    if (this.difficultyLabelEl) {
+      const label = this.difficulty === "easy" ? "쉬움" : this.difficulty === "normal" ? "보통" : "어려움";
+      this.difficultyLabelEl.textContent = label;
+    }
   }
 
   private handleGameOver() {
@@ -411,8 +488,8 @@ class GameScene extends Phaser.Scene {
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: 540,
-  height: 960,
+  width: 420,
+  height: 880,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

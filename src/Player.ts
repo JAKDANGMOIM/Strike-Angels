@@ -33,7 +33,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   private joystickPointerId: number | null = null;
 
   // Weapon Properties
-  private fireRate: number = 4.2;
+  private fireRate: number = 7.5;
   private fireCooldown: number = 0;
   private bulletGroup: Phaser.Physics.Arcade.Group;
   private getTargetAngle: () => number;
@@ -266,12 +266,17 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   private fire() {
     const baseAngle = this.getTargetAngle();
-    const spreadAngles = [-10, 0, 10];
+    const bullet = this.bulletGroup.get(this.x, this.y - 28) as Bullet;
+    if (bullet) bullet.fire(this.x, this.y - 28, baseAngle);
+  }
 
-    for (const spread of spreadAngles) {
-      const bullet = this.bulletGroup.get(this.x, this.y - 28) as Bullet;
-      if (bullet) bullet.fire(this.x, this.y - 28, baseAngle + spread);
-    }
+  destroy(fromScene?: boolean) {
+    this.scene.scale.off("resize", this.handleResize, this);
+    this.scene.input.off("pointerdown", this.handlePointerDown, this);
+    this.scene.input.off("pointermove", this.handlePointerMove, this);
+    this.scene.input.off("pointerup", this.handlePointerUp, this);
+    this.scene.input.off("pointerupoutside", this.handlePointerUp, this);
+    super.destroy(fromScene);
   }
 
   private tryActivateAfterburner() {

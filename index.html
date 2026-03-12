@@ -7,7 +7,24 @@
     <title>Strike Angels</title>
   </head>
   <body>
-    <div id="game-container"></div>
+    <div id="app-shell">
+      <aside class="side-panel left-panel">
+        <h2>관리자 모드</h2>
+        <p>난이도: <strong id="difficulty-label">쉬움</strong></p>
+        <div class="difficulty-tabs">
+          <button class="difficulty-btn active" data-difficulty="easy">쉬움</button>
+          <button class="difficulty-btn" data-difficulty="normal">보통</button>
+          <button class="difficulty-btn" data-difficulty="hard">어려움</button>
+        </div>
+      </aside>
+
+      <main id="game-container"></main>
+
+      <aside class="side-panel right-panel">
+        <h2>보스 도달까지</h2>
+        <div id="boss-time">00:45</div>
+      </aside>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

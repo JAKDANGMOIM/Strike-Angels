@@ -5,18 +5,81 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: #000;
+  background: radial-gradient(circle at center, #2b0f1b 0%, #09070d 70%);
   overflow: hidden;
+  color: #fff;
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+}
+
+#app-shell {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  box-sizing: border-box;
+  gap: 14px;
+}
+
+.side-panel {
+  width: 22vw;
+  height: 95vh;
+  min-width: 220px;
+  max-width: 340px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  background: rgba(20, 8, 16, 0.72);
+  border-radius: 12px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.side-panel h2 {
+  margin-top: 0;
+  margin-bottom: 14px;
+  font-size: 24px;
+}
+
+.difficulty-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.difficulty-btn {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.difficulty-btn.active {
+  background: #20d2ff;
+  color: #041018;
+  font-weight: 700;
 }
 
 #game-container {
-  width: 100vw;
-  height: 100vh;
+  flex: 1;
+  height: 95vh;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
+#boss-time {
+  margin-top: 20px;
+  font-size: 56px;
+  font-weight: 900;
+  color: #ff5f65;
+  text-shadow: 0 0 12px rgba(255, 72, 72, 0.7);
+}
+
 #game-container canvas {
   touch-action: none;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-radius: 10px;
 }

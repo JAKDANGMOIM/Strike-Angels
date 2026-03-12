@@ -3,10 +3,10 @@ import Bullet from "./Bullet";
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   // Movement Properties
-  private moveSpeed: number = 200; // Pixels per second
+  private moveSpeed: number = 240;
   private afterburnerSpeedMultiplier: number = 1.5;
-  private afterburnerDuration: number = 2000; // ms
-  private afterburnerCooldown: number = 5000; // ms
+  private afterburnerDuration: number = 2000;
+  private afterburnerCooldown: number = 5000;
 
   // State
   private currentSpeed: number;
@@ -33,9 +33,10 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   private joystickPointerId: number | null = null;
 
   // Weapon Properties
-  private fireRate: number = 0.5; // fires per second
+  private fireRate: number = 4.2;
   private fireCooldown: number = 0;
   private bulletGroup: Phaser.Physics.Arcade.Group;
+  private getTargetAngle: () => number;
 
   // Health
   private readonly maxHealth: number = 100;
@@ -48,21 +49,21 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     x: number,
     y: number,
     bulletGroup: Phaser.Physics.Arcade.Group,
+    getTargetAngle: () => number,
   ) {
     super(scene, x, y, "player");
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     this.bulletGroup = bulletGroup;
+    this.getTargetAngle = getTargetAngle;
     this.currentSpeed = this.moveSpeed;
     this.isTouchDevice = scene.sys.game.device.input.touch;
 
-    // Set physics properties
     this.setCollideWorldBounds(true);
-
-    // Scale down the high-res sprite (preserving aspect ratio)
     this.displayWidth = 48;
     this.scaleY = this.scaleX;
+    this.setRotation(0);
 
     if (scene.input.keyboard) {
       this.cursors = scene.input.keyboard.createCursorKeys();
@@ -90,7 +91,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   update(_time: number, delta: number) {
     this.updateTimers(delta);
     this.handleInput();
-    this.handleWeapon(delta);
+    this.handleWeapon();
     this.updateSmoke(delta);
   }
 
@@ -107,20 +108,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   private updateSmoke(delta: number) {
-    if (this.health > this.maxHealth * 0.5 || this.health <= 0) {
-      return;
-    }
+    if (this.health > this.maxHealth * 0.5 || this.health <= 0) return;
 
     this.smokeTimer -= delta;
-    if (this.smokeTimer > 0) {
-      return;
-    }
+    if (this.smokeTimer > 0) return;
 
     this.smokeTimer = this.smokeInterval;
-    const offset = new Phaser.Math.Vector2(0, 20).rotate(this.rotation);
     const smoke = this.scene.add.circle(
-      this.x + offset.x,
-      this.y + offset.y,
+      this.x,
+      this.y + 20,
       Phaser.Math.Between(4, 8),
       0x777777,
       0.7,
@@ -153,7 +149,13 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       .setDepth(1001);
 
     this.boostButton = this.scene.add
-      .circle(this.scene.scale.width - 95, this.scene.scale.height - 95, 52, 0xff8c00, 0.45)
+      .circle(
+        this.scene.scale.width - 95,
+        this.scene.scale.height - 95,
+        52,
+        0xff8c00,
+        0.45,
+      )
       .setScrollFactor(0)
       .setDepth(1000)
       .setStrokeStyle(2, 0xffffff, 0.35);
@@ -161,7 +163,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.boostButton.setInteractive({ useHandCursor: false });
 
     this.scene.scale.on("resize", this.handleResize, this);
-
     this.scene.input.on("pointerdown", this.handlePointerDown, this);
     this.scene.input.on("pointermove", this.handlePointerMove, this);
     this.scene.input.on("pointerup", this.handlePointerUp, this);
@@ -213,9 +214,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const vector = new Phaser.Math.Vector2(dx, dy);
 
     const maxDistance = 50;
-    if (vector.length() > maxDistance) {
-      vector.setLength(maxDistance);
-    }
+    if (vector.length() > maxDistance) vector.setLength(maxDistance);
 
     this.joystickThumb.setPosition(
       this.joystickBase.x + vector.x,
@@ -228,18 +227,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   private updateTimers(delta: number) {
     if (this.afterburnerActive) {
       this.afterburnerTimer -= delta;
-      if (this.afterburnerTimer <= 0) {
-        this.deactivateAfterburner();
-      }
+      if (this.afterburnerTimer <= 0) this.deactivateAfterburner();
     }
 
-    if (this.afterburnerCooldownTimer > 0) {
-      this.afterburnerCooldownTimer -= delta;
-    }
-
-    if (this.fireCooldown > 0) {
-      this.fireCooldown -= delta;
-    }
+    if (this.afterburnerCooldownTimer > 0) this.afterburnerCooldownTimer -= delta;
+    if (this.fireCooldown > 0) this.fireCooldown -= delta;
   }
 
   private handleInput() {
@@ -253,9 +245,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       if (this.cursors.up.isDown || this.wasd.up.isDown) inputY = -1;
       else if (this.cursors.down.isDown || this.wasd.down.isDown) inputY = 1;
 
-      if (this.shiftKey?.isDown) {
-        this.tryActivateAfterburner();
-      }
+      if (this.shiftKey?.isDown) this.tryActivateAfterburner();
     }
 
     if (this.touchDirection.lengthSq() > 0) {
@@ -263,42 +253,24 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       inputY = this.touchDirection.y;
     }
 
-    const movementInput = new Phaser.Math.Vector2(inputX, inputY).normalize();
-
-    if (movementInput.lengthSq() > 0) {
-      const targetAngle = Math.atan2(movementInput.y, movementInput.x);
-      let currentAngle = this.rotation - Math.PI / 2;
-
-      let diff = targetAngle - currentAngle;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-
-      currentAngle += diff * 0.1;
-      this.rotation = currentAngle + Math.PI / 2;
-    }
-
-    const angleRad = this.rotation - Math.PI / 2;
-    const vx = Math.cos(angleRad) * this.currentSpeed;
-    const vy = Math.sin(angleRad) * this.currentSpeed;
-    this.setVelocity(vx, vy);
+    const movement = new Phaser.Math.Vector2(inputX, inputY);
+    if (movement.lengthSq() > 1) movement.normalize();
+    this.setVelocity(movement.x * this.currentSpeed, movement.y * this.currentSpeed);
   }
 
-  private handleWeapon(_delta: number) {
-    if (this.fireCooldown <= 0) {
-      this.fire();
-      this.fireCooldown = (1 / this.fireRate) * 1000;
-    }
+  private handleWeapon() {
+    if (this.fireCooldown > 0) return;
+    this.fire();
+    this.fireCooldown = (1 / this.fireRate) * 1000;
   }
 
   private fire() {
-    const baseAngle = Phaser.Math.RadToDeg(this.rotation);
-    const spreadAngles = [-12, 0, 12];
+    const baseAngle = this.getTargetAngle();
+    const spreadAngles = [-10, 0, 10];
 
     for (const spread of spreadAngles) {
-      const bullet = this.bulletGroup.get(this.x, this.y) as Bullet;
-      if (bullet) {
-        bullet.fire(this.x, this.y, baseAngle + spread);
-      }
+      const bullet = this.bulletGroup.get(this.x, this.y - 28) as Bullet;
+      if (bullet) bullet.fire(this.x, this.y - 28, baseAngle + spread);
     }
   }
 

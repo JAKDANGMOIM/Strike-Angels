@@ -288,6 +288,9 @@ class GameScene extends Phaser.Scene {
       () => -90,
     );
 
+    this.wingmen.push(new Wingman(this, Boss.getTextureKey(0), 0, "narrow"));
+    this.wingmen.push(new Wingman(this, Boss.getTextureKey(1), Math.PI, "split"));
+
     this.bossTimeEl = document.getElementById("boss-timer-overlay");
 
     this.createHealthUI();
